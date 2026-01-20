@@ -6,72 +6,59 @@ import pickle
 import os
 
 # --- 1. CONFIG HALAMAN ---
-st.set_page_config(page_title="Laptop AI Predictor Pro", page_icon="💻", layout="wide")
+st.set_page_config(page_title="Laptop Price AI", page_icon="💻", layout="wide")
 
-# --- 2. CUSTOM CSS (FIX TEKS & VISUAL) ---
+# --- 2. CUSTOM CSS ---
 st.markdown("""
     <style>
-    /* Background Utama Gelap Premium */
-    .stApp {
-        background: radial-gradient(circle, #1a1a2e 0%, #16213e 100%);
-    }
-    
-    /* Memastikan semua teks utama berwarna putih agar kelihatan */
-    h1, h2, h3, p, label, .stMarkdown {
-        color: #ffffff !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    /* Style Input Box agar kontras */
-    .stSelectbox, .stSlider, .stNumberInput {
+    .stApp { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); color: #ffffff; }
+    h1, h2, h3, p, label { color: #ffffff !important; }
+    .stNumberInput, .stSelectbox, .stSlider {
         background-color: rgba(255, 255, 255, 0.1) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        padding: 5px;
+        border: 1px solid #00f2fe !important;
+        border-radius: 10px;
     }
-
-    /* Kartu Hasil Glassmorphism */
     .result-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(20px);
-        border: 2px solid rgba(255, 255, 255, 0.1);
-        border-radius: 30px;
-        padding: 50px;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(15px);
+        border-radius: 25px;
+        padding: 40px;
+        border: 2px solid #00f2fe;
         text-align: center;
+        box-shadow: 0 0 30px rgba(0, 242, 254, 0.3);
     }
-
-    /* Tombol Prediksi Neon */
+    .price-text { font-size: 55px; font-weight: 800; color: #00ff88; margin: 10px 0; }
     .stButton>button {
-        background: linear-gradient(45deg, #00f2fe 0%, #4facfe 100%);
-        color: white !important;
-        border: none;
-        padding: 20px;
-        font-size: 22px;
-        font-weight: bold;
-        border-radius: 15px;
-        box-shadow: 0 0 20px rgba(0, 242, 254, 0.5);
-        width: 100%;
-    }
-    
-    .price-tag {
-        font-size: 65px;
-        font-weight: 900;
-        color: #00f2fe;
-        text-shadow: 0 0 30px rgba(0, 242, 254, 0.6);
-        margin: 20px 0;
+        background: linear-gradient(45deg, #00dbde, #fc00ff);
+        color: white !important; font-weight: bold; font-size: 20px;
+        border-radius: 50px; width: 100%; border: none; height: 3.5em;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. LOAD ASSETS ---
+# --- 3. DATA MAPPING ---
+list_company = ['Acer', 'Apple', 'Asus', 'Chuwi', 'Dell', 'Fujitsu', 'Google', 'HP', 'Huawei', 'LG', 'Lenovo', 'MSI', 'Mediacom', 'Microsoft', 'Razer', 'Samsung', 'Toshiba', 'Vero', 'Xiaomi']
+list_typename = ['2 in 1 Convertible', 'Gaming', 'Netbook', 'Notebook', 'Ultrabook', 'Workstation']
+list_opsys = ['Android', 'Chrome OS', 'Linux', 'Mac OS X', 'No OS', 'Windows 10', 'Windows 10 S', 'Windows 7', 'macOS']
+
+# --- 4. LOAD ASSETS (DENGAN AUTO-PATH) ---
 @st.cache_resource
 def load_assets():
+    # Mencari lokasi folder saat ini secara absolut
     current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Gabungkan folder dengan nama file secara benar
     model_path = os.path.join(current_dir, 'model_laptop_terbaik.h5')
     scaler_path = os.path.join(current_dir, 'scaler.pkl')
-    if not os.path.exists(model_path) or not os.path.exists(scaler_path):
+    
+    # Cek fisik file sebelum di-load
+    if not os.path.exists(model_path):
+        st.error(f"File MODEL tidak ditemukan di: {model_path}")
         return None, None
+    if not os.path.exists(scaler_path):
+        st.error(f"File SCALER tidak ditemukan di: {scaler_path}")
+        return None, None
+        
     model = tf.keras.models.load_model(model_path)
     with open(scaler_path, 'rb') as f:
         scaler = pickle.load(f)
@@ -79,87 +66,63 @@ def load_assets():
 
 model, scaler = load_assets()
 
+# --- 5. TAMPILAN UTAMA ---
+st.title("🌌 LAPTOP PRICE")
+st.write("---")
+
 if model is None:
-    st.error("❌ ERROR: File .h5 atau .pkl tidak ditemukan di folder!")
+    st.warning("⚠️ Aplikasi berhenti karena aset model/scaler hilang. Pastikan file ada di folder yang sama dengan app.py")
     st.stop()
 
-# --- 4. DATA MAPPING ---
-list_company = ['Acer', 'Apple', 'Asus', 'Chuwi', 'Dell', 'Fujitsu', 'Google', 'HP', 'Huawei', 'LG', 'Lenovo', 'MSI', 'Mediacom', 'Microsoft', 'Razer', 'Samsung', 'Toshiba', 'Vero', 'Xiaomi']
-list_typename = ['2 in 1 Convertible', 'Gaming', 'Netbook', 'Notebook', 'Ultrabook', 'Workstation']
-list_opsys = ['Android', 'Chrome OS', 'Linux', 'Mac OS X', 'No OS', 'Windows 10', 'Windows 10 S', 'Windows 7', 'macOS']
+col1, col2 = st.columns([1, 1.2], gap="large")
 
-# --- 5. LAYOUT UTAMA ---
-st.write("# 🌌 LAPTOP PRICE")
-st.write("Prediksi Masa Depan Harga Laptop Anda dengan Hybrid Deep Learning.")
-st.write("---")
-
-col_left, col_right = st.columns([1, 1.2], gap="large")
-
-with col_left:
-    st.markdown("### 🛠️ Input Spesifikasi")
-    
-    # Grid Input
-    brand = st.selectbox("Merk Laptop", list_company)
-    l_type = st.selectbox("Tipe Laptop", list_typename)
-    os_sys = st.selectbox("Sistem Operasi", list_opsys)
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        ram = st.select_slider("RAM (GB)", options=[2, 4, 8, 12, 16, 32, 64], value=8)
-    with c2:
-        inch = st.number_input("Layar (Inches)", 10.0, 18.0, 15.6)
-    
-    weight = st.slider("Berat Laptop (kg)", 0.5, 5.0, 1.5)
-    
-    st.write(" ")
+with col1:
+    st.subheader("🛠️ Parameter Input (Numeric)")
+    comp_idx = st.number_input("Merk Laptop (Kode 0-18)", 0, 18, 0)
+    type_idx = st.number_input("Tipe Laptop (Kode 0-5)", 0, 5, 3)
+    opsys_idx = st.number_input("OS (Kode 0-8)", 0, 8, 5)
+    ram = st.slider("Kapasitas RAM (GB)", 2, 64, 8)
+    inches = st.number_input("Ukuran Layar (Inches)", 10.0, 18.0, 15.6)
+    weight = st.slider("Berat Laptop (kg)", 0.5, 5.0, 1.8)
     btn_predict = st.button("🚀 ANALISIS SEKARANG")
 
-with col_right:
-    st.markdown("### 📊 Hasil Prediksi")
+with col2:
+    st.subheader("📊 Laporan Spesifikasi & Hasil")
     if btn_predict:
-        # Preprocessing & Prediction
-        brand_enc = list_company.index(brand)
-        type_enc = list_typename.index(l_type)
-        os_enc = list_opsys.index(os_sys)
-        
-        input_raw = np.array([[brand_enc, type_enc, ram, weight, os_enc, inch]])
+        # Prediksi
+        input_raw = np.array([[comp_idx, type_idx, ram, weight, opsys_idx, inches]])
         input_scaled = scaler.transform(input_raw)
         input_final = input_scaled.reshape(1, 6, 1)
-        
         prob = model.predict(input_final)[0][0]
         
-        # Logika Harga Rupiah (Kurs 17.000)
-        kurs = 17000
-        median_base = 1000
+        # Mapping Nama
+        nama_merek = list_company[comp_idx]
+        nama_tipe = list_typename[type_idx]
+        nama_os = list_opsys[opsys_idx]
         
+        # Logika Harga Berwarna & Realistis
         if prob > 0.5:
-            price = (median_base + (prob * 1300)) * kurs
-            st.markdown(f"""
-                <div class="result-card">
-                    <h2 style='color: #ff0055;'>💎 PREMIUM EDITION</h2>
-                    <p style='color: #aaa;'>Estimasi Harga Pasar:</p>
-                    <div class="price-tag">Rp {price:,.0f}</div>
-                    <p style='color: #00f2fe;'>AI Confidence: {prob:.2%}</p>
-                </div>
-                """, unsafe_allow_html=True)
+            # Range Premium: 15jt - 35jt
+            price_idr = 15000000 + (prob * 20000000)
+            status = "PREMIUM CLASS"
+            warna = "#ff4b4b"
         else:
-            price = (median_base - ((1-prob) * 600)) * kurs
-            st.markdown(f"""
-                <div class="result-card">
-                    <h2 style='color: #00ff88;'>✅ ECONOMY EDITION</h2>
-                    <p style='color: #aaa;'>Estimasi Harga Pasar:</p>
-                    <div class="price-tag" style='color: #00ff88; text-shadow: 0 0 30px rgba(0, 255, 136, 0.4);'>
-                        Rp {price:,.0f}
-                    </div>
-                    <p style='color: #00ff88;'>Prediksi: {(1-prob):.2%}</p>
-                </div>
-                """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <div style='padding: 50px; border: 2px dashed rgba(255,255,255,0.2); border-radius: 20px; text-align: center;'>
-                <p style='color: rgba(255,255,255,0.4);'>Silakan masukkan spesifikasi di samping untuk memulai analisis AI.</p>
+            # Range Ekonomi: 4jt - 12jt
+            price_idr = 4000000 + (prob * 8000000)
+            status = "ECONOMY CLASS"
+            warna = "#00ff88"
+
+        st.markdown(f"""
+            <div class="result-card">
+                <p style='color: #00f2fe; margin-bottom: 5px;'>DETAIL PERANGKAT:</p>
+                <h1 style='color: #ffffff !important; margin-top:0;'>{nama_merek} {nama_tipe}</h1>
+                <p style='font-size: 16px; color: #bbb !important;'>
+                    OS: {nama_os} | RAM: {ram}GB | Layar: {inches}" | Berat: {weight}kg
+                </p>
+                <hr style='border-color: rgba(255,255,255,0.1);'>
+                <p style='font-size: 18px; margin-top: 15px;'>Kategori Terdeteksi:</p>
+                <h2 style='color: {warna} !important; font-size: 35px; font-weight: bold;'>{status}</h2>
+                <div class="price-text">Rp {price_idr:,.0f}</div>
+                <p style='color: #888;'>Akurasi Prediksi: {prob if prob > 0.5 else (1-prob):.2%}</p>
             </div>
         """, unsafe_allow_html=True)
-
-st.write("---")
-st.caption("UAS Deep Learning 2026 @ Project Fitri 220401075 | Powered by Hybrid CNN-GRU")
