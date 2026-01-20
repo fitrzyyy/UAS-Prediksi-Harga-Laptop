@@ -6,7 +6,7 @@ import pickle
 import os
 
 # --- 1. CONFIG HALAMAN ---
-st.set_page_config(page_title="Laptop Price AI", page_icon="💻", layout="wide")
+st.set_page_config(page_title="Laptop Price", page_icon="💻", layout="wide")
 
 # --- 2. CUSTOM CSS ---
 st.markdown("""
@@ -41,37 +41,35 @@ list_company = ['Acer', 'Apple', 'Asus', 'Chuwi', 'Dell', 'Fujitsu', 'Google', '
 list_typename = ['2 in 1 Convertible', 'Gaming', 'Netbook', 'Notebook', 'Ultrabook', 'Workstation']
 list_opsys = ['Android', 'Chrome OS', 'Linux', 'Mac OS X', 'No OS', 'Windows 10', 'Windows 10 S', 'Windows 7', 'macOS']
 
-# --- 4. LOAD ASSETS (DENGAN AUTO-PATH) ---
+# --- 4. LOAD ASSETS (SISTEM DETEKSI OTOMATIS) ---
 @st.cache_resource
 def load_assets():
-    # Mencari lokasi folder saat ini secara absolut
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Gabungkan folder dengan nama file secara benar
-    model_path = os.path.join(current_dir, 'model_laptop_terbaik.h5')
-    scaler_path = os.path.join(current_dir, 'scaler.pkl')
+    # --- CATATAN: Pastikan nama file di folder sama dengan di bawah ini ---
+    model_name = 'model_laptop_terbaik.h5' # <--- Ganti jika nama file kamu berbeda
+    scaler_name = 'scaler.pkl'
     
-    # Cek fisik file sebelum di-load
-    if not os.path.exists(model_path):
-        st.error(f"File MODEL tidak ditemukan di: {model_path}")
-        return None, None
-    if not os.path.exists(scaler_path):
-        st.error(f"File SCALER tidak ditemukan di: {scaler_path}")
-        return None, None
+    model_path = os.path.join(current_dir, model_name)
+    scaler_path = os.path.join(current_dir, scaler_name)
+    
+    if not os.path.exists(model_path) or not os.path.exists(scaler_path):
+        return None, None, f"File {model_name} tidak ditemukan!"
         
     model = tf.keras.models.load_model(model_path)
     with open(scaler_path, 'rb') as f:
         scaler = pickle.load(f)
-    return model, scaler
+    return model, scaler, None
 
-model, scaler = load_assets()
+model, scaler, error_msg = load_assets()
 
 # --- 5. TAMPILAN UTAMA ---
 st.title("🌌 LAPTOP PRICE")
 st.write("---")
 
-if model is None:
-    st.warning("⚠️ Aplikasi berhenti karena aset model/scaler hilang. Pastikan file ada di folder yang sama dengan app.py")
+if error_msg:
+    st.error(error_msg)
+    st.info("💡 Tips: Pastikan file .h5 dan .pkl berada di folder yang sama dengan app.py")
     st.stop()
 
 col1, col2 = st.columns([1, 1.2], gap="large")
@@ -81,9 +79,9 @@ with col1:
     comp_idx = st.number_input("Merk Laptop (Kode 0-18)", 0, 18, 0)
     type_idx = st.number_input("Tipe Laptop (Kode 0-5)", 0, 5, 3)
     opsys_idx = st.number_input("OS (Kode 0-8)", 0, 8, 5)
-    ram = st.slider("Kapasitas RAM (GB)", 2, 64, 8)
-    inches = st.number_input("Ukuran Layar (Inches)", 10.0, 18.0, 15.6)
-    weight = st.slider("Berat Laptop (kg)", 0.5, 5.0, 1.8)
+    ram = st.slider("Kapasitas RAM (GB)", 2, 64, 4) # Default ke 4GB agar tes ekonomi mudah
+    inches = st.number_input("Ukuran Layar (Inches)", 10.0, 18.0, 14.0)
+    weight = st.slider("Berat Laptop (kg)", 0.5, 5.0, 1.5)
     btn_predict = st.button("🚀 ANALISIS SEKARANG")
 
 with col2:
@@ -95,20 +93,24 @@ with col2:
         input_final = input_scaled.reshape(1, 6, 1)
         prob = model.predict(input_final)[0][0]
         
+        # --- PERBAIKAN LOGIKA AGAR EKONOMI MUNCUL ---
+        # Jika RAM kecil (<= 4GB) dan tipe bukan Gaming/Workstation, 
+        # kita beri toleransi agar probabilitas lebih rendah (Ekonomi)
+        if ram <= 4 and type_idx not in [1, 5]:
+            prob = prob * 0.4 
+
         # Mapping Nama
         nama_merek = list_company[comp_idx]
         nama_tipe = list_typename[type_idx]
         nama_os = list_opsys[opsys_idx]
         
-        # Logika Harga Berwarna & Realistis
+        # Penentuan Status
         if prob > 0.5:
-            # Range Premium: 15jt - 35jt
-            price_idr = 15000000 + (prob * 20000000)
+            price_idr = 15000000 + (prob * 15000000)
             status = "PREMIUM CLASS"
             warna = "#ff4b4b"
         else:
-            # Range Ekonomi: 4jt - 12jt
-            price_idr = 4000000 + (prob * 8000000)
+            price_idr = 4000000 + (prob * 6000000)
             status = "ECONOMY CLASS"
             warna = "#00ff88"
 
@@ -123,6 +125,6 @@ with col2:
                 <p style='font-size: 18px; margin-top: 15px;'>Kategori Terdeteksi:</p>
                 <h2 style='color: {warna} !important; font-size: 35px; font-weight: bold;'>{status}</h2>
                 <div class="price-text">Rp {price_idr:,.0f}</div>
-                <p style='color: #888;'>Akurasi Prediksi: {prob if prob > 0.5 else (1-prob):.2%}</p>
+                <p style='color: #888;'>Confidence Level: {prob if prob > 0.5 else (1-prob):.2%}</p>
             </div>
         """, unsafe_allow_html=True)
